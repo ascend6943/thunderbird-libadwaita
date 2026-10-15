@@ -5,14 +5,14 @@
 #
 # Removes everything install.sh sets up:
 #   - the thunderbird-gnome-theme files from every profile's chrome/ dir
-#   - icons-csp-fix.css (and its import line) from every profile's chrome/ dir
+#   - the fix stylesheets (and their import lines) from every profile's chrome/ dir
 #   - the two prefs the theme adds to the profile's user.js
 #   - adw-gtk3 from the theme dirs it was installed into
 #   - the GSettings changes (Flatpak: reset; native: restore saved value)
 #
 set -euo pipefail
 
-ICON_FIX_FILE="icons-csp-fix.css"
+FIX_FILES=(icons-csp-fix.css missing-icons-fix.css)
 STATE_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/thunderbird-libadwaita/state"
 
 log()  { printf '==> %s\n' "$*"; }
@@ -61,13 +61,17 @@ clean_profile() {  # $1 = profile dir
 	local pdir=$1
 	[ -d "$pdir" ] || return 0
 
-	# Composer icon fix shipped by this repo (independent of the theme).
-	if [ -f "$pdir/chrome/$ICON_FIX_FILE" ] || [ -f "$pdir/chrome/userChrome.css" ]; then
-		rm -f "$pdir/chrome/$ICON_FIX_FILE"
+	# Fix stylesheets shipped by this repo (independent of the theme).
+	local name removed=0
+	for name in "${FIX_FILES[@]}"; do
+		[ -f "$pdir/chrome/$name" ] && removed=1
+		rm -f "$pdir/chrome/$name"
 		if [ -f "$pdir/chrome/userChrome.css" ]; then
-			sed -i -e "/@import \"$ICON_FIX_FILE\";/d" "$pdir/chrome/userChrome.css"
+			sed -i -e "/@import \"$name\";/d" "$pdir/chrome/userChrome.css"
 		fi
-		info "composer icon fix removed from $pdir"
+	done
+	if [ "$removed" -eq 1 ]; then
+		info "fix stylesheets removed from $pdir"
 	fi
 
 	if [ -d "$pdir/chrome/thunderbird-gnome-theme" ]; then

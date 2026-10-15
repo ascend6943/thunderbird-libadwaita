@@ -17,7 +17,8 @@ native dialogs — in light *and* dark — for Thunderbird 115+ on Linux.
 Thunderbird is a GTK app, but almost everything you see is drawn by Gecko with its own
 CSS, while GTK draws the "native" bits (window decorations and buttons, some menus and
 dialogs, fonts, cursors, icon theme). To look like a real libadwaita app, all three
-layers have to agree — so this project installs four things:
+layers have to agree — so this project sets up those three layers, plus two small
+stylesheets that patch parts of the theme which are broken on current Thunderbird:
 
 ### 1. `thunderbird-gnome-theme` — the UI skin (CSS)
 
@@ -85,6 +86,33 @@ and imports from `userChrome.css`. Inside those two windows only, it points the 
 icon variables back at Thunderbird's own `chrome://` icons — which the CSP *does* allow —
 and restores the `fill` + `stroke` paint context those icons need. Every other window
 keeps the theme's GNOME icons.
+
+### 5. `missing-icons-fix.css` — icons the theme references but doesn't ship
+
+The theme's CSS points at loose SVG files under `theme/icons/`:
+
+```css
+theme/parts/tabsbar.css   url("../icons/window-close-symbolic.svg")
+theme/parts/controls.css  url("../icons/select-symbolic.svg")
+theme/parts/controls.css  url("../icons/bullet-symbolic.svg")
+theme/parts/icons.css     url("../icons/folder-symbolic.svg")
+theme/parts/icons.css     url("../icons/preferences-system-time-symbolic.svg")
+```
+
+None of those files exist — the theme *generates* its icons into
+`theme/icons/icons.css` as `--gnome-icon-*-symbolic` data: URIs, and the only loose SVGs
+it still ships are in `theme/icons/custom/`. A `url()` that fails to load paints nothing,
+so each of those controls lost its glyph entirely:
+
+| Broken | Symptom |
+|---|---|
+| `.tab-close-button` | no × on the tabs — the theme's own `content: url(...)` also throws away the child image Thunderbird 153 would have shown |
+| `.checkbox-check[checked]` | checked checkboxes are a plain blue square, with no ✓ |
+| `.radio-check[selected]` | selected radio buttons are a plain blue circle, with no dot |
+| `treechildren::-moz-tree-image(...)` | no folder/history icons in legacy tree dialogs (Subscribe, Search…) |
+
+`missing-icons-fix.css` re-points each one at the theme's own icon variable, so the result
+is what the theme intended in the first place.
 
 Finally Thunderbird is restarted so everything takes effect.
 
@@ -154,10 +182,10 @@ adw-gtk3. Worth doing after Thunderbird updates, since the CSS tracks current re
 ```
 
 Removes the theme from every profile's `chrome/` (keeping any CSS files you added
-yourself), removes `icons-csp-fix.css` and its import line, removes the two prefs the
-theme added, deletes adw-gtk3 from the locations this project installed it to, and
-restores/resets the GSettings values — including restoring your previous system GTK3
-theme on native installs.
+yourself), removes the fix stylesheets (`icons-csp-fix.css`, `missing-icons-fix.css`) and
+their import lines, removes the two prefs the theme added, deletes adw-gtk3 from the
+locations this project installed it to, and restores/resets the GSettings values —
+including restoring your previous system GTK3 theme on native installs.
 
 ---
 
@@ -181,10 +209,12 @@ tar -xf adw-gtk3v6.5.tar.xz -C ~/.var/app/org.mozilla.thunderbird_esr/data/theme
 flatpak run --command=gsettings org.mozilla.thunderbird_esr \
   set org.gnome.desktop.interface gtk-theme adw-gtk3
 
-# 4. Composer icons (the theme's data: icons are blocked by the composer's CSP)
-cp icons-csp-fix.css "$TB/$(grep -m1 '^Path=' "$TB/profiles.ini" | cut -d= -f2)/chrome/"
-echo '@import "icons-csp-fix.css";' >> \
-  "$TB/$(grep -m1 '^Path=' "$TB/profiles.ini" | cut -d= -f2)/chrome/userChrome.css"
+# 4. Fix stylesheets (composer icons blocked by CSP; icons the theme doesn't ship)
+PROFILE="$TB/$(grep -m1 '^Path=' "$TB/profiles.ini" | cut -d= -f2)/chrome"
+for f in icons-csp-fix.css missing-icons-fix.css; do
+  cp "$f" "$PROFILE/"
+  echo "@import \"$f\";" >> "$PROFILE/userChrome.css"
+done
 
 # 5. Restart Thunderbird
 ```
@@ -231,6 +261,11 @@ profile's `user.js` and the Config Editor.
 **The composer shows labels but no icons** — `icons-csp-fix.css` is missing from
 `<profile>/chrome/` (or isn't imported). Re-run `./install.sh`, which reinstalls it; see
 [step 4](#4-icons-csp-fixcss--bringing-back-the-composers-icons) for why it's needed.
+
+**No × on the tabs, or checkboxes/radios lost their glyph** — `missing-icons-fix.css` is
+missing from `<profile>/chrome/` (or isn't imported). Re-run `./install.sh`; see
+[step 5](#5-missing-icons-fixcss--icons-the-theme-references-but-doesnt-ship) for why it's
+needed.
 
 **After a Thunderbird update something looks off** — the CSS tracks Thunderbird's UI
 internals; re-run `./install.sh` to pull the latest theme.

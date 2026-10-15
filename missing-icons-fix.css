@@ -1,0 +1,84 @@
+/* ---------------------------------------------------------------------------
+ * thunderbird-libadwaita — icons the theme references but does not ship
+ *
+ * thunderbird-gnome-theme's CSS points at loose SVG files under theme/icons/:
+ *
+ *   theme/parts/tabsbar.css   url("../icons/window-close-symbolic.svg")
+ *   theme/parts/controls.css  url("../icons/select-symbolic.svg")
+ *   theme/parts/controls.css  url("../icons/bullet-symbolic.svg")
+ *   theme/parts/icons.css     url("../icons/folder-symbolic.svg")
+ *   theme/parts/icons.css     url("../icons/preferences-system-time-symbolic.svg")
+ *
+ * None of those files exist. The theme generates its icons into
+ * theme/icons/icons.css as `--gnome-icon-*-symbolic` data: URIs, and the only
+ * loose SVGs it still ships live in theme/icons/custom/. A url() that fails to
+ * load paints nothing, so the affected control loses its glyph completely:
+ *
+ *   - the close button on tabs (worst case: the theme's own rule sets
+ *     `content: url(../icons/window-close-symbolic.svg)` on .tab-close-button,
+ *     which throws away the child image Thunderbird 153 would have shown)
+ *   - the check mark of a checked checkbox
+ *   - the dot of a selected radio button
+ *   - folder / history icons in legacy <tree> views (Subscribe, Search, ...)
+ *
+ * This stylesheet re-points each one at the theme's own icon variable, so the
+ * result is what the theme intended in the first place. The extra fill /
+ * context-properties declarations are needed because those data: URIs paint
+ * with `context-fill` / `context-fill-opacity` and the theme's broken rules were
+ * the only place that supplied them for the tree icons.
+ *
+ * Installed by install.sh into <profile>/chrome/ and imported from
+ * <profile>/chrome/userChrome.css.
+ * ------------------------------------------------------------------------- */
+
+@namespace xul "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+
+/* ---------------------------------------------------------------------------
+ * 1. Tab close button (main window tab bar)
+ *
+ * The theme's dangling `content: url(...)` on the button is replaced by the
+ * theme's own close icon. Thunderbird 153 renders the icon in a child
+ * <img class="tab-close-icon" src="chrome://global/skin/icons/close.svg">; if a
+ * future version ignores `content` here, that native image is shown instead -
+ * either way the button is visible again.
+ * ------------------------------------------------------------------------- */
+:root[windowtype="mail:3pane"] .tab-close-button {
+	content: var(--gnome-icon-window-close-symbolic, url("chrome://global/skin/icons/close.svg")) !important;
+	fill: var(--gnome-toolbar-color, currentColor) !important;
+	fill-opacity: 1 !important;
+	-moz-context-properties: fill, fill-opacity !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * 2. Checked checkbox — the theme paints the box with the accent colour and
+ *    expects a white check mark in it (fill: white is set by the theme).
+ * ------------------------------------------------------------------------- */
+:root checkbox:not(.treenode-checkbox) > .checkbox-check[checked] {
+	background-image: var(--gnome-icon-select-symbolic) !important;
+	-moz-context-properties: fill, fill-opacity !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * 3. Selected radio button — accent circle with a white dot in it.
+ * ------------------------------------------------------------------------- */
+:root radio > .radio-check[selected] {
+	list-style-image: var(--gnome-icon-bullet-symbolic) !important;
+	-moz-context-properties: fill, fill-opacity !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * 4. Folder and history-query icons in legacy trees.
+ * ------------------------------------------------------------------------- */
+:root treechildren::-moz-tree-image(title, container),
+:root treechildren::-moz-tree-image(title, open) {
+	list-style-image: var(--gnome-icon-folder-symbolic) !important;
+	-moz-context-properties: fill, fill-opacity !important;
+	fill: currentColor !important;
+}
+
+:root treechildren::-moz-tree-image(title, query, dayContainer),
+:root treechildren::-moz-tree-image(query, OrganizerQuery_history____v) {
+	list-style-image: var(--gnome-icon-preferences-system-time-symbolic) !important;
+	-moz-context-properties: fill, fill-opacity !important;
+	fill: currentColor !important;
+}

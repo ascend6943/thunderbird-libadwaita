@@ -11,8 +11,10 @@
 #                                  the app can actually find it (native or Flatpak)
 #   3. GSettings                -> points the app at adw-gtk3 and copies your desktop's
 #                                  cursor/icons/font/window-button layout into it
-#   4. icons-csp-fix.css        -> brings back the composer's toolbar icons, which the
-#                                  theme's data: URIs cannot provide there (CSP)
+#   4. fix stylesheets          -> small patches for two things the theme gets wrong on
+#                                  current Thunderbird: icons missing from the composer
+#                                  (its CSP blocks the theme's data: URIs) and icons the
+#                                  theme references but does not ship
 #
 set -euo pipefail
 
@@ -23,12 +25,11 @@ ADW_GTK3_FALLBACK="https://github.com/lassekongo83/adw-gtk3/releases/download/v6
 STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/thunderbird-libadwaita"
 STATE_FILE="$STATE_DIR/state"
 
-# The icon fix lives next to this script in the repo; if the script was run on
-# its own (not from a checkout) it is fetched from the repository instead.
+# The fix stylesheets live next to this script in the repo; if the script was run
+# on its own (not from a checkout) they are fetched from the repository instead.
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-ICON_FIX_FILE="icons-csp-fix.css"
-ICON_FIX_IMPORT='@import "icons-csp-fix.css";'
-ICON_FIX_URL="https://raw.githubusercontent.com/ascend6943/thunderbird-libadwaita/main/icons-csp-fix.css"
+FIX_FILES=(icons-csp-fix.css missing-icons-fix.css)
+FIX_RAW_BASE="https://raw.githubusercontent.com/ascend6943/thunderbird-libadwaita/main"
 
 # --------------------------------------------------------------------- cli ---
 PROFILE="" YES=0 DRY=0 NO_RESTART=0 NO_SYSTEM_THEME=0
@@ -126,35 +127,44 @@ install_css() {  # $1 = kind, $2 = tb profile dir
 	info "Adwaita CSS installed into $tbdir ${PROFILE:+(profile: $PROFILE)}"
 }
 
-# ------------------------------------------ step 1b: composer icon fix -------
-# The theme replaces Thunderbird's icons with GNOME icons embedded as
-# `url("data:image/svg+xml,...")`. Thunderbird's composer and its standalone
-# message window ship a Content-Security-Policy of `img-src chrome: moz-icon:`,
-# which blocks those data: images - so every toolbar button whose icon the theme
-# swapped out (Send, Encrypt, Spelling, Save, Contacts, Attach, ...) renders
-# empty there. icons-csp-fix.css points those icons back at Thunderbird's own
-# chrome:// icons inside those two windows only; every other window keeps the
-# theme's GNOME icons.
-icon_fix_source() {
-	if [ -f "$SCRIPT_DIR/$ICON_FIX_FILE" ]; then
-		printf '%s' "$SCRIPT_DIR/$ICON_FIX_FILE"
+# --------------------------------------------------------- step 1b: fixes ----
+# Both fix stylesheets patch things the theme gets wrong on current Thunderbird:
+#
+#   icons-csp-fix.css    The theme replaces Thunderbird's icons with GNOME icons
+#                        embedded as `url("data:image/svg+xml,...")`. The composer
+#                        and the standalone message window ship a
+#                        Content-Security-Policy of `img-src chrome: moz-icon:`,
+#                        which blocks data: images - so every toolbar button whose
+#                        icon the theme swapped out (Send, Encrypt, Spelling, Save,
+#                        Contacts, Attach, ...) renders empty there. This file
+#                        points those icons back at Thunderbird's own chrome://
+#                        icons inside those two windows only.
+#
+#   missing-icons-fix.css
+#                        The theme references five SVG files it does not ship
+#                        (theme/icons/*.svg), so the tab close button, checkboxes,
+#                        radio buttons and legacy tree folders lose their glyph.
+#                        This file re-points them at the theme's own icon
+#                        variables.
+fix_source() {  # $1 = file name -> prints a local path, or fails
+	local name=$1
+	if [ -f "$SCRIPT_DIR/$name" ]; then
+		printf '%s' "$SCRIPT_DIR/$name"
 		return 0
 	fi
-	if [ -n "${TMP_WORK:-}" ] && curl -fsSL -o "$TMP_WORK/$ICON_FIX_FILE" "$ICON_FIX_URL" 2>/dev/null; then
-		printf '%s' "$TMP_WORK/$ICON_FIX_FILE"
+	if [ -n "${TMP_WORK:-}" ] && curl -fsSL -o "$TMP_WORK/$name" "$FIX_RAW_BASE/$name" 2>/dev/null; then
+		printf '%s' "$TMP_WORK/$name"
 		return 0
 	fi
 	return 1
 }
 
-install_icon_fix() {  # $1 = tb folder (e.g. ~/.var/app/<id>/.thunderbird)
-	local tbdir=$1 src p dirs=()
+install_fixes() {  # $1 = tb folder (e.g. ~/.var/app/<id>/.thunderbird)
+	local tbdir=$1 name src p dirs=()
 	if [ "$DRY" -eq 1 ]; then
-		info "[dry-run] would install $ICON_FIX_FILE into: $tbdir (profiles: ${PROFILE:-all})"
+		info "[dry-run] would install ${FIX_FILES[*]} into: $tbdir (profiles: ${PROFILE:-all})"
 		return 0
 	fi
-	src=$(icon_fix_source) \
-		|| { warn "could not obtain $ICON_FIX_FILE - composer icons will stay missing"; return 0; }
 
 	if [ -n "$PROFILE" ]; then
 		dirs=("$tbdir/$PROFILE")
@@ -168,15 +178,17 @@ install_icon_fix() {  # $1 = tb folder (e.g. ~/.var/app/<id>/.thunderbird)
 	for p in "${dirs[@]}"; do
 		# userChrome.css is created by the theme installer; if it is missing the
 		# CSS part has not run for this profile, so there is nothing to hook into.
-		if [ ! -f "$p/chrome/userChrome.css" ]; then
-			continue
-		fi
-		cp "$src" "$p/chrome/$ICON_FIX_FILE"
-		grep -qF "$ICON_FIX_IMPORT" "$p/chrome/userChrome.css" \
-			|| printf '%s\n' "$ICON_FIX_IMPORT" >> "$p/chrome/userChrome.css"
-		found=1
+		[ -f "$p/chrome/userChrome.css" ] || continue
+		for name in "${FIX_FILES[@]}"; do
+			src=$(fix_source "$name") \
+				|| { warn "could not obtain $name - its icons will stay missing"; continue; }
+			cp "$src" "$p/chrome/$name"
+			grep -qF "@import \"$name\";" "$p/chrome/userChrome.css" \
+				|| printf '@import "%s";\n' "$name" >> "$p/chrome/userChrome.css"
+			found=1
+		done
 	done
-	[ "$found" -eq 1 ] && info "composer icon fix installed into $tbdir ${PROFILE:+(profile: $PROFILE)}"
+	[ "$found" -eq 1 ] && info "fix stylesheets installed into $tbdir ${PROFILE:+(profile: $PROFILE)}"
 	return 0
 }
 
@@ -376,7 +388,7 @@ main() {
 		fi
 		log "Configuring [$kind] $val"
 		install_css "$kind" "$tbdir"
-		install_icon_fix "$tbdir"
+		install_fixes "$tbdir"
 		place_adw "$kind" "$val"
 		apply_settings "$kind" "$val"
 	done
