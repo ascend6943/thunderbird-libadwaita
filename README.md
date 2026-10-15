@@ -15,7 +15,7 @@ native dialogs — in light *and* dark — for Thunderbird 115+ on Linux.
 Thunderbird is a GTK app, but almost everything you see is drawn by Gecko with its own
 CSS, while GTK draws the "native" bits (window decorations and buttons, some menus and
 dialogs, fonts, cursors, icon theme). To look like a real libadwaita app, all three
-layers have to agree — so this project installs three things:
+layers have to agree — so this project installs four things:
 
 ### 1. `thunderbird-gnome-theme` — the UI skin (CSS)
 
@@ -59,6 +59,30 @@ why the Flatpak gets its own copy.
   You'll be asked to confirm this. All legacy GTK3 apps then get the libadwaita look
   too (GTK4/libadwaita apps ignore GTK themes, so they are unaffected). The previous
   value is saved and restored by `uninstall.sh`.
+
+### 4. `icons-csp-fix.css` — bringing back the composer's icons
+
+The GNOME theme replaces Thunderbird's icons with GNOME symbolic icons embedded in its CSS
+as `url("data:image/svg+xml,...")` values. Thunderbird ships a Content-Security-Policy with
+every window, and two of them refuse to load `data:` images:
+
+| Window | `img-src` in its CSP | Theme icons |
+|---|---|---|
+| Main window (`messenger.xhtml`) | `chrome: data: moz-icon: …` | ✅ load fine |
+| **Message composer** (`messengercompose.xhtml`) | `chrome: moz-icon:` | ❌ blocked by CSP |
+| **Single-message window** (`messageWindow.xhtml`) | `chrome: moz-icon:` | ❌ blocked by CSP |
+
+So in the composer, every button whose icon the theme swapped out — Send, Encrypt,
+Spelling, Save, Contacts, Attach … — showed its label but no icon. (This is the theme's
+upstream
+[issue #18](https://github.com/rafaelmardojai/thunderbird-gnome-theme/issues/18) /
+[#22](https://github.com/rafaelmardojai/thunderbird-gnome-theme/issues/22).)
+
+`icons-csp-fix.css` is a small stylesheet this project installs into `<profile>/chrome/`
+and imports from `userChrome.css`. Inside those two windows only, it points the affected
+icon variables back at Thunderbird's own `chrome://` icons — which the CSP *does* allow —
+and restores the `fill` + `stroke` paint context those icons need. Every other window
+keeps the theme's GNOME icons.
 
 Finally Thunderbird is restarted so everything takes effect.
 
@@ -128,9 +152,10 @@ adw-gtk3. Worth doing after Thunderbird updates, since the CSS tracks current re
 ```
 
 Removes the theme from every profile's `chrome/` (keeping any CSS files you added
-yourself), removes the two prefs the theme added, deletes adw-gtk3 from the locations
-this project installed it to, and restores/resets the GSettings values — including
-restoring your previous system GTK3 theme on native installs.
+yourself), removes `icons-csp-fix.css` and its import line, removes the two prefs the
+theme added, deletes adw-gtk3 from the locations this project installed it to, and
+restores/resets the GSettings values — including restoring your previous system GTK3
+theme on native installs.
 
 ---
 
@@ -154,7 +179,12 @@ tar -xf adw-gtk3v6.5.tar.xz -C ~/.var/app/org.mozilla.thunderbird_esr/data/theme
 flatpak run --command=gsettings org.mozilla.thunderbird_esr \
   set org.gnome.desktop.interface gtk-theme adw-gtk3
 
-# 4. Restart Thunderbird
+# 4. Composer icons (the theme's data: icons are blocked by the composer's CSP)
+cp icons-csp-fix.css "$TB/$(grep -m1 '^Path=' "$TB/profiles.ini" | cut -d= -f2)/chrome/"
+echo '@import "icons-csp-fix.css";' >> \
+  "$TB/$(grep -m1 '^Path=' "$TB/profiles.ini" | cut -d= -f2)/chrome/userChrome.css"
+
+# 5. Restart Thunderbird
 ```
 
 For a **native** install, use `~/.thunderbird` as `$TB` in step 1, install adw-gtk3 into
@@ -195,6 +225,10 @@ Both should say `adw-gtk3`. If the key is missing, re-run `./install.sh`.
 
 **Icons render black** — `svg.context-properties.content.enabled` isn't set; check the
 profile's `user.js` and the Config Editor.
+
+**The composer shows labels but no icons** — `icons-csp-fix.css` is missing from
+`<profile>/chrome/` (or isn't imported). Re-run `./install.sh`, which reinstalls it; see
+[step 4](#4-icons-csp-fixcss--bringing-back-the-composers-icons) for why it's needed.
 
 **After a Thunderbird update something looks off** — the CSS tracks Thunderbird's UI
 internals; re-run `./install.sh` to pull the latest theme.

@@ -1,0 +1,159 @@
+/* ---------------------------------------------------------------------------
+ * thunderbird-libadwaita — icon fix for windows that block data: URLs
+ *
+ * Why this file exists
+ * --------------------
+ * The GNOME theme (thunderbird-gnome-theme) replaces Thunderbird's icons with
+ * its own GNOME symbolic icons, which are embedded in CSS as
+ * `url("data:image/svg+xml,...")` values (see the theme's theme/icons/icons.css).
+ *
+ * Thunderbird ships every window with its own Content-Security-Policy. The main
+ * window allows data: images:
+ *
+ *   messenger.xhtml         img-src chrome: data: moz-icon: ...
+ *
+ * but the message composer and the standalone message window do not:
+ *
+ *   messengercompose.xhtml  img-src chrome: moz-icon:
+ *   messageWindow.xhtml     img-src chrome: moz-icon:
+ *
+ * In those windows every `data:` image is blocked by the CSP, so all icons the
+ * theme swapped out simply do not render — that is the "empty buttons in the
+ * compose window" bug (Send, Encrypt, Spelling, Save, Contacts, Attach, ...).
+ *
+ * The fix: inside those two windows only, point the affected icons back at
+ * Thunderbird's own `chrome://` icons, which the CSP does allow. Every other
+ * window (including the main window) keeps the theme's GNOME icons.
+ *
+ * This file is installed by install.sh into <profile>/chrome/ and imported
+ * from <profile>/chrome/userChrome.css.
+ * ------------------------------------------------------------------------- */
+
+@namespace xul "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+
+/* ---------------------------------------------------------------------------
+ * 1. Use Thunderbird's own icons in the composer and single-message window.
+ *
+ * These variables are normally overridden at :root by
+ * thunderbird-gnome-theme/theme/parts/icons.css with data: URIs. Selecting the
+ * window root by windowtype wins over the theme's plain `:root` rule (higher
+ * specificity), so the theme's values still apply everywhere else.
+ * ------------------------------------------------------------------------- */
+
+:root[windowtype="msgcompose"],
+html#msgcomposeWindow,
+:root[windowtype="mail:messageWindow"] {
+	/* icons replaced by the GNOME theme with CSP-blocked data: URIs */
+	--icon-add: url("chrome://messenger/skin/icons/new/compact/add.svg") !important;
+	--icon-address-book: url("chrome://messenger/skin/icons/new/compact/address-book.svg") !important;
+	--icon-app-menu: url("chrome://messenger/skin/icons/new/compact/app-menu.svg") !important;
+	--icon-archive: url("chrome://messenger/skin/icons/new/compact/archive.svg") !important;
+	--icon-attachment: url("chrome://messenger/skin/icons/new/compact/attachment.svg") !important;
+	--icon-attachment-sm: url("chrome://messenger/skin/icons/new/attachment-sm.svg") !important;
+	--icon-calendar: url("chrome://messenger/skin/icons/new/compact/calendar.svg") !important;
+	--icon-calendar-today: url("chrome://messenger/skin/icons/new/compact/calendar-today.svg") !important;
+	--icon-chat: url("chrome://messenger/skin/icons/new/compact/chat.svg") !important;
+	--icon-check: url("chrome://messenger/skin/icons/new/compact/check.svg") !important;
+	--icon-close: url("chrome://messenger/skin/icons/new/compact/close.svg") !important;
+	--icon-cloud-download: url("chrome://messenger/skin/icons/new/compact/cloud-download.svg") !important;
+	--icon-collapse: url("chrome://messenger/skin/icons/new/compact/collapse.svg") !important;
+	--icon-column-menu: url("chrome://messenger/skin/icons/new/column-menu.svg") !important;
+	--icon-display-options: url("chrome://messenger/skin/icons/new/compact/display-options.svg") !important;
+	--icon-download: url("chrome://messenger/skin/icons/new/compact/download.svg") !important;
+	--icon-draft: url("chrome://messenger/skin/icons/new/compact/draft.svg") !important;
+	--icon-extension: url("chrome://messenger/skin/icons/new/compact/extension.svg") !important;
+	--icon-eye: url("chrome://messenger/skin/icons/new/compact/eye.svg") !important;
+	--icon-file: url("chrome://messenger/skin/icons/new/compact/file.svg") !important;
+	--icon-filter: url("chrome://messenger/skin/icons/new/compact/filter.svg") !important;
+	--icon-folder: url("chrome://messenger/skin/icons/new/compact/folder.svg") !important;
+	--icon-forward: url("chrome://messenger/skin/icons/new/compact/forward.svg") !important;
+	--icon-forward-col: url("chrome://messenger/skin/icons/new/compact/forward-col.svg") !important;
+	--icon-hidden: url("chrome://messenger/skin/icons/new/compact/hidden.svg") !important;
+	--icon-inbox: url("chrome://messenger/skin/icons/new/compact/inbox.svg") !important;
+	--icon-kebab: url("chrome://messenger/skin/icons/new/compact/kebab.svg") !important;
+	--icon-lock: url("chrome://messenger/skin/icons/new/compact/lock.svg") !important;
+	--icon-lock-disabled: url("chrome://messenger/skin/icons/new/compact/lock-disabled.svg") !important;
+	--icon-mail: url("chrome://messenger/skin/icons/new/compact/mail.svg") !important;
+	--icon-mail-lg: url("chrome://messenger/skin/icons/new/touch/mail.svg") !important;
+	--icon-mail-secure: url("chrome://messenger/skin/icons/new/compact/mail-secure.svg") !important;
+	--icon-more: url("chrome://messenger/skin/icons/new/compact/more.svg") !important;
+	--icon-nav-back: url("chrome://messenger/skin/icons/new/compact/nav-back.svg") !important;
+	--icon-nav-down: url("chrome://messenger/skin/icons/new/compact/nav-down.svg") !important;
+	--icon-nav-down-sm: url("chrome://messenger/skin/icons/new/nav-down-sm.svg") !important;
+	--icon-nav-forward: url("chrome://messenger/skin/icons/new/compact/nav-forward.svg") !important;
+	--icon-nav-left: url("chrome://messenger/skin/icons/new/compact/nav-left.svg") !important;
+	--icon-nav-left-sm: url("chrome://messenger/skin/icons/new/nav-left-sm.svg") !important;
+	--icon-nav-right: url("chrome://messenger/skin/icons/new/compact/nav-right.svg") !important;
+	--icon-nav-right-sm: url("chrome://messenger/skin/icons/new/nav-right-sm.svg") !important;
+	--icon-nav-today: url("chrome://messenger/skin/icons/new/nav-today.svg") !important;
+	--icon-nav-up: url("chrome://messenger/skin/icons/new/compact/nav-up.svg") !important;
+	--icon-nav-up-sm: url("chrome://messenger/skin/icons/new/nav-up-sm.svg") !important;
+	--icon-new-chat: url("chrome://messenger/skin/icons/new/compact/new-chat.svg") !important;
+	--icon-new-event: url("chrome://messenger/skin/icons/new/compact/new-event.svg") !important;
+	--icon-new-indicator: url("chrome://messenger/skin/icons/folder-new-indicator.svg") !important;
+	--icon-new-mail: url("chrome://messenger/skin/icons/new/compact/new-mail.svg") !important;
+	--icon-new-task: url("chrome://messenger/skin/icons/new/compact/new-task.svg") !important;
+	--icon-offline: url("chrome://messenger/skin/icons/new/compact/offline.svg") !important;
+	--icon-online: url("chrome://messenger/skin/icons/new/compact/online.svg") !important;
+	--icon-pencil: url("chrome://messenger/skin/icons/new/compact/pencil.svg") !important;
+	--icon-photo-ban: url("chrome://messenger/skin/icons/new/compact/photo-ban.svg") !important;
+	--icon-pin: url("chrome://messenger/skin/icons/new/compact/pin.svg") !important;
+	--icon-print: url("chrome://messenger/skin/icons/new/compact/print.svg") !important;
+	--icon-redirect: url("chrome://messenger/skin/icons/new/compact/redirect.svg") !important;
+	--icon-redirect-col: url("chrome://messenger/skin/icons/new/compact/redirect-col.svg") !important;
+	--icon-replies-xs: url("chrome://messenger/skin/icons/xs/replies.svg") !important;
+	--icon-reply: url("chrome://messenger/skin/icons/new/compact/reply.svg") !important;
+	--icon-reply-all: url("chrome://messenger/skin/icons/new/compact/reply-all.svg") !important;
+	--icon-reply-col: url("chrome://messenger/skin/icons/new/compact/reply-col.svg") !important;
+	--icon-reply-list: url("chrome://messenger/skin/icons/new/compact/reply-list.svg") !important;
+	--icon-rss: url("chrome://messenger/skin/icons/new/compact/rss.svg") !important;
+	--icon-search: url("chrome://messenger/skin/icons/new/compact/search.svg") !important;
+	--icon-sent: url("chrome://messenger/skin/icons/new/compact/sent.svg") !important;
+	--icon-settings: url("chrome://messenger/skin/icons/new/compact/settings.svg") !important;
+	--icon-spaces-menu: url("chrome://messenger/skin/icons/new/compact/spaces-menu.svg") !important;
+	--icon-spam: url("chrome://messenger/skin/icons/new/compact/spam.svg") !important;
+	--icon-spam-sm: url("chrome://messenger/skin/icons/new/spam-sm.svg") !important;
+	--icon-spelling: url("chrome://messenger/skin/icons/new/compact/spelling.svg") !important;
+	--icon-star: url("chrome://messenger/skin/icons/new/compact/star.svg") !important;
+	--icon-star-sm: url("chrome://messenger/skin/icons/new/star-sm.svg") !important;
+	--icon-sync: url("chrome://messenger/skin/icons/new/compact/sync.svg") !important;
+	--icon-tag: url("chrome://messenger/skin/icons/new/compact/tag.svg") !important;
+	--icon-tag-sm: url("chrome://messenger/skin/icons/new/tag-sm.svg") !important;
+	--icon-tasks: url("chrome://messenger/skin/icons/new/compact/tasks.svg") !important;
+	--icon-template: url("chrome://messenger/skin/icons/new/compact/template.svg") !important;
+	--icon-tentative: url("chrome://messenger/skin/icons/new/compact/tentative.svg") !important;
+	--icon-trash: url("chrome://messenger/skin/icons/new/compact/trash.svg") !important;
+	--icon-trash-sm: url("chrome://messenger/skin/icons/new/trash-sm.svg") !important;
+	--icon-unread: url("chrome://messenger/skin/icons/new/compact/unread.svg") !important;
+	--icon-unread-sm: url("chrome://messenger/skin/icons/new/unread-sm.svg") !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * 2. Restore the paint context for those native icons.
+ *
+ * Thunderbird draws its toolbar icons with `fill` *and* `stroke` context
+ * colours (the theme's two-tone look), but the GNOME theme sets
+ *   -moz-context-properties: fill, fill-opacity  (no stroke)
+ * on .toolbarbutton-1, because its own icons are fill-only. Left as-is, every
+ * stroke-only Thunderbird icon (the paperclip and the save arrow, for example)
+ * would still be invisible.
+ * ------------------------------------------------------------------------- */
+:root[windowtype="msgcompose"] .toolbarbutton-1,
+:root[windowtype="msgcompose"] .toolbarbutton-1 > .toolbarbutton-icon,
+:root[windowtype="msgcompose"] .toolbarbutton-1 > .toolbarbutton-menubutton-button,
+:root[windowtype="msgcompose"] .toolbarbutton-menu-dropmarker,
+:root[windowtype="msgcompose"] .toolbarbutton-menubutton-dropmarker,
+html#msgcomposeWindow .toolbarbutton-1,
+html#msgcomposeWindow .toolbarbutton-1 > .toolbarbutton-icon,
+html#msgcomposeWindow .toolbarbutton-1 > .toolbarbutton-menubutton-button,
+html#msgcomposeWindow .toolbarbutton-menu-dropmarker,
+html#msgcomposeWindow .toolbarbutton-menubutton-dropmarker,
+:root[windowtype="mail:messageWindow"] .toolbarbutton-1,
+:root[windowtype="mail:messageWindow"] .toolbarbutton-1 > .toolbarbutton-icon,
+:root[windowtype="mail:messageWindow"] .toolbarbutton-1 > .toolbarbutton-menubutton-button,
+:root[windowtype="mail:messageWindow"] .toolbarbutton-menu-dropmarker,
+:root[windowtype="mail:messageWindow"] .toolbarbutton-menubutton-dropmarker {
+	-moz-context-properties: fill, stroke, fill-opacity !important;
+	fill: var(--gnome-toolbar-icon-fill, currentColor) !important;
+	stroke: var(--gnome-toolbar-icon-fill, currentColor) !important;
+}
