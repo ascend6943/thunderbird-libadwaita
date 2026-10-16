@@ -1,7 +1,8 @@
 # thunderbird-libadwaita
 
 **Make Thunderbird look like a GTK4/libadwaita app on GNOME.**
-<img width="2529" height="1402" alt="image" src="https://github.com/user-attachments/assets/b8f9168d-5891-49ac-8bef-ba87cdf9b72a" />
+<img width="2579" height="1458" alt="Screenshot From 2026-10-16 14-15-32" src="https://github.com/user-attachments/assets/d406ce1f-6e33-4d2c-8b25-f8bcd4b56685" />
+<img width="1296" height="940" alt="Screenshot From 2026-10-16 14-15-40" src="https://github.com/user-attachments/assets/635c3795-8652-44ef-ac4b-2911ebf86af5" />
 
 
 Adwaita headerbar with rounded corners and in-headerbar window buttons, `#3584e4` blue
